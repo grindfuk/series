@@ -1,0 +1,17 @@
+Team 4 ecnc requested to turn in late 1 day.
+Need to subtract point
+
+Team 8 no longer exists.
+
+1. Run create_checkout_file.py
+
+This generates a checkout.sh file
+
+2. Run checkout.sh file
+
+This creates a student_solutions directory
+
+3. We need to manually fix the student solutions directories before evaluating.
+
+This basically means that some of the student directories are weird.
+
