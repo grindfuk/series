@@ -13,5 +13,9 @@ This creates a student_solutions directory
 
 3. We need to manually fix the student solutions directories before evaluating.
 
+
 We need to all an `all_tests_head.py` to the `all_tests_tail.py` to get the file `all_tests.py`.
 This basically means that some of the student directories are weird.
+
+4. Run
+		python3 fixed_student_solutions/cs207project/$f/run_tests.py > results/$f.txt 2>results/$f.err.log

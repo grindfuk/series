@@ -1,6 +1,11 @@
+import numbers
 import numpy as np
+from timeseries.lazy import *
 from timeseries.TimeSeries import TimeSeries
 from timeseries.SizedContainerTimeSeriesInterface import SizedContainerTimeSeriesInterface
+
+# to avoid float problems, allow some tolerance!
+tolerance = 10 ** (-9)
 
 class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
 
@@ -43,9 +48,10 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         """
         return len(self._times)
 
-    def __getitem__(self, time):
+    def __getitem__(self, index):
         """
-        returns value of timeseries at position index
+        Gets the value of the timeseries at the position index.
+        This implementation does not search against times.
 
         Parameters
         ----------
@@ -56,32 +62,18 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         timeseries value at position index
 
         >>> ts = TimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
-        >>> ts[0.5]
+        >>> ts[0]
         0.5
-        >>> ts[1.0]
+        >>> ts[3]
         4.0
         """
+        assert (isinstance(index, int))
+        return self._values[index]
 
-        # we sorted the array in the constructor, this means we can use binary search
-        # for a quick lookup!
-        # if the value is not found, returns the next higher one
-        ind = np.searchsorted(self._times, time, side='right')
-
-        # make sure index is within range
-        ind = max(min(ind, len(self) - 1), 0)
-
-        if abs(time - self._times[ind]) < tolerance:
-            return self._values[ind]
-        # is the previous element a better fit?
-        if abs(time - self._times[ind - 1]) < tolerance:
-            return self._values[ind - 1]
-        # the value could not be looked up, raise an IndexError!
-        raise IndexError
-        return np.NaN
-
-    def __setitem__(self, time, val):
+    def __setitem__(self, index, value):
         """
-        updates value of timeseries at position index
+        Updates the value of timeseries at position index.
+        We currently do not allow changing times to preserve order.
 
         Parameters
         ----------
@@ -89,57 +81,32 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         val : new value to update timeseries at position index with
 
         >>> ts = TimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
-        >>> ts[0.8]
+        >>> ts[0] = 2.0
         2.0
-        >>> ts[0.8] = 5.0
-        >>> ts[0.8]
-        5.0
+        >>> ts[0]
+        2.0
         """
+        try:
+            assert (isinstance(index, int))
+            assert (isinstance(value, numbers.Number))
+        except Exception as e:
+            raise Exception("setitem must be of the form `object[int] = Number`") from e
+        self._values[index] = value
+        return self._values[index]
 
-        # we sorted the array in the constructor, this means we can use binary search
-        # for a quick lookup!
-        # if the value is not found, returns the next higher one
-        ind = np.searchsorted(self._times, time, side='right')
-
-        # make sure index is within range
-        ind = max(min(ind, len(self) - 1), 0)
-
-        if abs(time - self._times[ind]) < tolerance:
-            self._values[ind] = float(val)
-            return
-        # is the previous element a better fit?
-        if abs(time - self._times[ind - 1]) < tolerance:
-            self._values[ind - 1] = float(val)
-            return
-        # the value could not be looked up, raise an IndexError!
-        raise IndexError
-
-    def __contains__(self, time):
+    def __contains__(self, value):
         """
-        checks whether time is contained within stored time points
+        Checks whether value is contained within stored time points
 
         Parameters
         ----------
-        time : time point to check for whether it is contained
+        value: value point to check for whether it is contained
 
         Returns
         -------
-        true if time point is contained, false else
+        true if value point is contained else false
         """
-        # we sorted the array in the constructor, this means we can use binary search
-        # for a quick lookup!
-        # if the value is not found, returns the next higher one
-        ind = np.searchsorted(self._times, time, side='right')
-
-        # make sure index is within range
-        ind = max(min(ind, len(self) - 1), 0)
-
-        if abs(time - self._times[ind]) < tolerance:
-            return True
-        # is the previous element a better fit?
-        if abs(time - self._times[ind - 1]) < tolerance:
-            return True
-        return False
+        return value in self._values
 
     def __iter__(self):
         """
@@ -296,7 +263,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         >>> ta == tb
         False
         """
-        if not isinstance(rhs, TimeSeries):
+        if not isinstance(rhs, ArrayTimeSeries):
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
             else:
@@ -306,10 +273,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         if len(self) != len(rhs):
             raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
 
-        if not np.allclose(self._times, rhs.times(), atol=tolerance):
-            raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-
-        return np.allclose(self._values, rhs.values(), atol=tolerance)
+        return np.allclose(self._values, rhs.values())
 
     def __add__(self, rhs):
         """
@@ -327,10 +291,10 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
 
             if not np.allclose(self._times, rhs.times(), atol=tolerance):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-            return TimeSeries(self._times, self._values + rhs.values())
+            return ArrayTimeSeries(self._times, self._values + rhs.values())
 
         elif isinstance(rhs, (int, float)):
-            return TimeSeries(self._times, self._values + rhs)
+            return ArrayTimeSeries(self._times, self._values + rhs)
         else:
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
@@ -347,16 +311,13 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         new timeseries object as result of the substraction
         """
-        if isinstance(rhs, (TimeSeries)):
+        if isinstance(rhs, (ArrayTimeSeries)):
             if len(self) != len(rhs):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-
-            if not np.allclose(self._times, rhs.times(), atol=tolerance):
-                raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-            return TimeSeries(self._times, self._values - rhs.values())
+            return ArrayTimeSeries(self._times, self._values - rhs.values())
 
         elif isinstance(rhs, (int, float)):
-            return TimeSeries(self._times, self._values - rhs)
+            return ArrayTimeSeries(self._times, self._values - rhs)
         else:
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
@@ -373,16 +334,13 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         new timeseries object as result of the multiplication
         """
-        if isinstance(rhs, (TimeSeries)):
+        if isinstance(rhs, (ArrayTimeSeries)):
             if len(self) != len(rhs):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-
-            if not np.allclose(self._times, rhs.times(), atol=tolerance):
-                raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-            return TimeSeries(self._times, self._values * rhs.values())
+            return ArrayTimeSeries(self._times, self._values * rhs.values())
 
         elif isinstance(rhs, (int, float)):
-            return TimeSeries(self._times, self._values * rhs)
+            return ArrayTimeSeries(self._times, self._values * rhs)
         else:
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
@@ -413,7 +371,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         returns series with negated values
         """
-        return TimeSeries(self._times, -self._values)
+        return ArrayTimeSeries(self._times, -self._values)
 
     def __pos__(self):
         """
@@ -421,7 +379,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         returns identity (unary +)
         """
-        return TimeSeries(self._times, self._values)
+        return ArrayTimeSeries(self._times, self._values)
 
     def __repr__(self):
         """

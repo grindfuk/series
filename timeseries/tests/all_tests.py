@@ -1,5 +1,7 @@
 # Combined tests for Projects 1-5 to run on Milestone I
 
+import re
+import numbers
 import logging
 import unittest
 import numpy as np
@@ -115,9 +117,9 @@ class TestTSBasics(unittest.TestCase):
             ts_value = ts[1]
             # The interface is not specified so we can accept any of these
             self.assertTrue(
+                ts_value == 0.2 or
                 ts_value == (2.5, 0.2) or
-                ts_value == [2.5, 0.2] or
-                ts_value == 0.2
+                ts_value == [2.5, 0.2]
             )
             scores.append(('#ts', '%s getitem returns the indexed time/value' % (i), 1))
 
@@ -130,7 +132,7 @@ class TestTSBasics(unittest.TestCase):
             self.assertEqual(ts_value, expected_ts_value)
             scores.append(('#ts', '%s getitem [-1] returns the indexed time/value' % (i), 1))
 
-    def test_invalid_getitem_with_non_integer_input(self):
+    def test_invalid_getitem_with_non_integer_get_index(self):
         """ Should throw when using getitem with float, str index """
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
@@ -142,25 +144,18 @@ class TestTSBasics(unittest.TestCase):
 
     def test_valid_setitem(self):
         """ Should update a tuple or list of time, value when using getitem with index """
-        t = TimeSeries([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
             try:
-                t[0] = [1.5, -0.9]
+                ts[0] = -0.9
             except:
-                try:
-                    t[0] = (1.5, -0.9)
-                except:
-                    try:
-                        t[0] = -0.9
-                    except:
-                        raise Exception('Could not setitem with %s' % ts_class)
+                raise Exception('Could not setitem with %s' % ts_class)
             ts_value = ts[0]
             self.assertTrue(
-                ts_value == (1.5, 0.9) or
-                ts_value == [1.5, 0.9] or
-                ts_value == 0.9
-                , 'Expected (1.5, 0.9) but got %s' % str(ts_value))
+                ts_value == -0.9 or
+                ts_value == (1.5, -0.9) or
+                ts_value == [1.5, -0.9]
+                , '%s: Expected (1.5, -0.9) but got %s' % (i, str(ts_value)))
             scores.append(('#ts', '%s setitem updates the indexed time/value' % (i), 1))
 
     def test_valid_setitem_with_negative_index(self):
@@ -168,416 +163,482 @@ class TestTSBasics(unittest.TestCase):
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
             try:
-                ts[-1] = [1.5, -0.9]
+                ts[-1] = -0.9
             except:
-                try:
-                    ts[-1] = (1.5, -0.9)
-                except:
-                    try:
-                        ts[-1] = -0.9
-                    except:
-                        raise Exception('Could not setitem with %s' % ts_class)
+                raise Exception('Could not setitem with %s' % ts_class)
             ts_value = ts[-1]
             expected_ts_value = ts[3]
             self.assertEqual(ts_value, expected_ts_value)
             scores.append(('#ts', '%s setitem updates the indexed time/value' % (i), 1))
 
-        with self.assertRaises(IndexError):
-            t[400.0] = 10.0
-        scores.append(('#ac Lab10', 'setitem excep', 1))
-
     def test_invalid_setitem_with_invalid_set_value(self):
-        """ Should throw when using getitem with float, str index """
+        """ Should throw when trying to set with an invalid set value. """
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
-            # NOTE: This may be acceptable depending on the student's interface.
             with self.assertRaises(Exception):
-                ts[0] = 1
+                ts[0] = None
             with self.assertRaises(Exception):
                 ts[0] = 'str'
             with self.assertRaises(Exception):
                 ts[0] = ('str', 'str')
+            # NOTE: This may be acceptable depending on the student's interface.
             with self.assertRaises(Exception):
-                ts[0] = ['str', 'str']
-            scores.append(('#ts', '%s should throw on setitem [1, 'str', ('str', 'str')]' % (i), 1))
+                ts[0] = [1, 1]
+            with self.assertRaises(Exception):
+                ts[0] = (1, 1)
+            scores.append(('#ts', '%s should throw on setitem[x]=[None, "str", ("str", "str"), ["str", "str"], [1,1], (1,1)]' % (i), 1))
 
-    def test_str1(self):
-        for stype in (str, repr):
-            # Check short strings are handled
-            s = stype(TimeSeries([1, 2, 3], [4, 5, 6]))
-            self.assertNotEqual(s, '')
-            self.assertTrue(len(s) < 1000)
-            # Check long strings are abbreviated
-            s = stype(TimeSeries(list(range(0, 100000)), list(range(0, 100000))))
-            self.assertNotEqual(s, '')
-            self.assertTrue(len(s) < 1000)
+    def test_invalid_setitem_with_non_integer_set_index(self):
+        """ Should throw when using setitem with float, str index """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            with self.assertRaises(Exception):
+                ts[2.0] = 1
+            with self.assertRaises(Exception):
+                ts['2'] = 1
+            scores.append(('#ts', '%s setitem[2.0, "2"]=(1,1) should error' % (i), 1))
 
-        scores.append(('#ac Lab10', 'str base', 1))
+    def test_valid_nonempty_str_and_repr(self):
+        """ All concrete classes should have a __str__() and __repr__(). Repeats are acceptable. """
+        ts = TimeSeries([0], [0])
+        ats = ArrayTimeSeries([0], [0])
+        sts = SimulatedTimeSeries(zero_generator)
+        for ts_class in [ts, ats, sts]:
+            dunder_str = str(ts_class)
+            dunder_repr = repr(ts_class)
+            self.assertNotEqual(dunder_str, '')
+            self.assertNotEqual(dunder_repr, '')
+        scores.append(('#ts', 'all concrete classes should have non-empty str and repr', 1))
 
-    def test_str3(self):
-        x = TimeSeries(list(range(0, 100000)), list(range(0, 100000)))
-        # check that hamming distance is larger than 6!
-        # there should be some difference showing they understood
-        # str / repr difference
-        min_length = min(len(str(x)), len(repr(x)))
-        diff_length = abs(len(str(x)) - len(repr(x)))
-        strstr = str(x)
-        reprstr = repr(x)
-        self.assertGreater(distance.hamming(strstr[:min_length], reprstr[:min_length]) + diff_length, 6)
-        scores.append(('#ac Lab10', 'str != repr', 1))
+    def test_valid_nondefault_str_and_repr(self):
+        """ All concrete classes should have non-default __str__() and __repr__(). """
+        ts = TimeSeries([0], [0])
+        ats = ArrayTimeSeries([0], [0])
+        sts = SimulatedTimeSeries(zero_generator)
+        self.assertNotRegexpMatches('^<.*.TimeSeries object at .*>$', str(ts))
+        self.assertNotRegexpMatches('^<.*.TimeSeries object at .*>$', repr(ts))
+        self.assertNotRegexpMatches('^<.*.ArrayTimeSeries object at .*>$', str(ats))
+        self.assertNotRegexpMatches('^<.*.ArrayTimeSeries object at .*>$', repr(ats))
+        self.assertNotRegexpMatches('^<.*.SimulatedTimeSeries object at .*>$', str(sts))
+        self.assertNotRegexpMatches('^<.*.SimulatedTimeSeries object at .*>$', repr(sts))
+        scores.append(('#ts', 'all concrete classes should have non-default str and repr', 1))
 
+    def test_valid_contains_returns_true(self):
+        """ All sized classes should return true when it contains a value. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            # NOTE: This interface might be different for groups since it isn't specified directly
+            self.assertTrue(0.2 in ts)
+            self.assertTrue(ts.__contains__(0.1))
+            scores.append(('#ts', '%s should implement __contains__(value) == True' % i, 1))
 
-    def test_contains1(self):
-        t = TimeSeries([0.1, 0.2, 0.3, 0.4], [1, 2, 3, 4])
+    def test_valid_contains_returns_false(self):
+        """ All sized classes should return False when it does not contain a value. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            # NOTE: This interface might be different for groups since it isn't specified directly
+            self.assertFalse(42 in ts)
+            self.assertFalse(ts.__contains__(-10))
+            scores.append(('#ts', '%s should implement __contains__(value) == False' % i, 1))
 
-        self.assertTrue(0.2 in t)
-        self.assertTrue(t.__contains__(0.1))
-        self.assertFalse(42 in t)
-        self.assertFalse(t.__contains__(-10))
-        scores.append(('#ac Lab10', 'test contains', 1))
+    def test_contains_with_invalid_values(self):
+        """ All sized classes should return False or throw exception when it does not contain a non-numeric value. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            try:
+                self.assertFalse('Hello World!' in ts)
+            except:
+                # Any Exception is fine if that is the interface
+                pass
+            try: self.assertFalse([] in ts)
+            except: pass
+            try: self.assertFalse(None in ts)
+            except: pass
+            try: self.assertFalse(True in ts)
+            except: pass
+            try: self.assertFalse(False in ts)
+            except: pass
+            scores.append(('#ts', 'all sized concrete classes should implement something for __contains__(any type) == False', 1))
 
+    def test_iteration_over_values_in_sized_class(self):
+        """ All sized classes should be iterable over the length of the time-series """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            expected_values = [0.1, 0.2, 0.3, 0.4]
+            expected_length = 0
+            for value in ts:
+                # This was an earlier interface but it should be okay if they kept it
+                if isinstance(value, (tuple, list)):
+                    self.assertEqual(expected_values, value[1])
+                elif isinstance(value, numbers.Number):
+                    self.assertEqual(expected_values[expected_length], value)
+                else:
+                    raise Exception('Invalid Type')
+                expected_length += 1
+            self.assertEqual(expected_length, len(ts))
+            scores.append(('#ts', '%s class should be iterable over the length' % i, 1))
 
-    def test_contains2(self):
-        t = TimeSeries([0.1, 0.2, 0.3, 0.4], [1, 2, 3, 4])
+    def test_values_property_in_sized_class(self):
+        """ All sized classes should have a fixed length values property """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            expected_values = [0.1, 0.2, 0.3, 0.4]
+            ts = ts_class(expected_values, [0.1, 0.2, 0.3, 0.4])
+            self.assertEqual(list(ts.values()), expected_values)
+            scores.append(('#ts', '%s class should have valid values property' % i, 1))
 
-        with self.assertRaises(TypeError):
-            'Hello World!' in t
-        scores.append(('#ac Lab10', 'test contains', 1))
+    def test_times_property_in_sized_class(self):
+        """ All sized classes should have a fixed length times property """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            expected_times = [1.5, 2.5, 3.5, 7.0]
+            ts = ts_class(expected_times, [0.1, 0.2, 0.3, 0.4])
+            self.assertEqual(list(ts.times()), expected_times)
+            scores.append(('#ts', '%s class should have valid times property' % i, 1))
 
+    def test_items_property_in_sized_class(self):
+        """ All sized classes should have a fixed length items property """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
+            self.assertEqual(list(ts.items()), [(1.5, 0.1), (2.5, 0.2), (3.5, 0.3), (7.0, 0.4)])
+            scores.append(('#ts', '%s class should have valid items property' % i, 1))
 
-    def test_iter(self):
-        vals = [1, 2, 3, 4]
-        t = TimeSeries([0.1, 0.2, 0.3, 0.4], vals)
-
-        pos = 0
-        for v in t:
-            self.assertEqual(v, vals[pos])
-            pos += 1
-        scores.append(('#ac Lab10', 'test iter', 2))
-
-
-    def test_properties(self):
-        times = [0.1, 0.2, 0.3, 0.4]
-        vals = [1, 2, 3, 4]
-        t = TimeSeries(times, vals)
-
-        self.assertEqual(list(t.times()), times)
-        self.assertEqual(list(t.values()), vals)
-        self.assertEqual(list(t.items()), [(0.1, 1), (0.2, 2), (0.3, 3), (0.4, 4)])
-        scores.append(('#ac Lab10', 'test properties', 1))
-
-
-    class TestTSInterpolation(unittest.TestCase):
-        def testInterpolation1(self):
-            a = TimeSeries([0, 5, 10], [1, 2, 3])
-            b = TimeSeries([2.5, 7.5], [100, -100])
-            # Simple cases as given
-            ares = a.interpolate([1])
+class TestTSInterpolation(unittest.TestCase):
+    def test_interpolation_with_simple_input(self):
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([0, 5, 10], [1, 2, 3])
+            ares = ts.interpolate([1])
             self.assertEqual(ares.values()[0], 1.2)
             self.assertEqual(ares.times()[0], 1)
-            ares = a.interpolate(b.times())
+            ares = ts.interpolate([2.5, 7.5])
             self.assertEqual(list(ares.values()), [1.5, 2.5])
             self.assertEqual(list(ares.times()), [2.5, 7.5])
             scores.append(('#ar Lab10', 'test interpol base', 3))
 
-        def testInterpolation2(self):
-            a = TimeSeries([0, 5, 10], [1, 2, 3])
-            b = TimeSeries([2.5, 7.5], [100, -100])
+    def test_interpolation_against_boundarys(self):
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([0, 5, 10], [1, 2, 3])
             # Boundary conditions
-            ares = a.interpolate([-100, 100])
+            ares = ts.interpolate([-100, 100])
             self.assertEqual(list(ares.values()), [1, 3])
             self.assertEqual(list(ares.times()), [-100, 100])
-            scores.append(('#ar Lab10', 'test interpol boundary', 3))
+            scores.append(('#lz', '%s interpolate against boundaaryts' % i, 1))
 
-        def testInterpolation3(self):
-            a = TimeSeries([0, 5, 10], [1, 2, 3])
-            b = TimeSeries([2.5, 7.5], [100, -100])
-            # empty case
-            ares = a.interpolate([])
+    def test_interpolation_against_empty(self):
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([0, 5, 10], [1, 2, 3])
+            ares = ts.interpolate([])
             self.assertEqual(list(ares.values()), [])
             self.assertEqual(list(ares.times()), [])
-            scores.append(('#ar Lab10', 'test interpol empty', 1))
+            scores.append(('#lz', '%s interpolate with empty ts' % i, 1))
 
 
-    class TestTSLaziness(unittest.TestCase):
-        def testLazy1(self):
-            x = TimeSeries([1, 2, 3, 4], [1, 4, 9, 16])
+class TestTSLaziness(unittest.TestCase):
 
-            self.assertEqual(str(x), str(x.lazy.eval()))
-            scores.append(('#lz Lab10', 'test lazy base', 3))
+    def test_lazy_propery_with_sized_timeseries(self):
+        """ Sized Timeseries should have a lazy property that wraps a self function. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2, 3, 4], [1, 4, 9, 16])
+            self.assertEqual(str(ts), str(ts.lazy.eval()))
+            scores.append(('#lz', '%s valid lazy property that wraps function' % i, 1))
 
-        def testCheckLength(self):
-            @lazy
-            def check_length(a, b):
-                return len(a) == len(b)
-
-            thunk = check_length(TimeSeries(range(0, 4), range(1, 5)), TimeSeries(range(0, 4), range(1, 5)))
+    def test_lazy_wrapped_length_with_sized_timeseries(self):
+        """ Should execute the example check_length which makes len lazy """
+        @lazy
+        def check_length(a, b):
+            return len(a) == len(b)
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            thunk = check_length(ts_class(range(0, 4), range(1, 5)), ts_class(range(0, 4), range(1, 5)))
             self.assertEqual(thunk.eval(), True)
-            scores.append(('#lz Lab10', 'test lazy base', 1))
+            scores.append(('#lz', '%s valid lazy property that wraps len' % i, 1))
 
-        def testLazy2(self):
-            # check recursive lazy operations
-            @lazy
-            def ladd(a, b):
-                return a + b
+    def test_lazy_add_and_lazy_mul_with_sized_timeseries(self):
+        """ Should execute lazy add and multiply recursively. """
+        @lazy
+        def lazy_add(a, b):
+            return a + b
 
-            @lazy
-            def lequal(a, b):
-                return a == b
+        @lazy
+        def lazy_mul(a, b):
+            return a + b
 
-            @lazy
-            def check_length2(a, b, c):
-                return lequal(ladd(len(a), len(b)), ladd(len(b), len(c))).eval()
+        @lazy
+        def lazy_equal(a, b):
+            return a == b
 
-            thunk2 = check_length2(TimeSeries(range(0, 4), range(1, 5)), \
-                                   TimeSeries(range(0, 4), range(1, 5)), \
-                                   TimeSeries(range(5, 9), range(2, 6)))
+        @lazy
+        def check_length(a, b, c):
+            return lazy_equal(lazy_add(len(a), len(b)), lazy_add(len(b), len(c))).eval()
+
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            thunk2 = check_length(ts_class(range(0, 4), range(1, 5)),
+                                  ts_class(range(0, 4), range(1, 5)),
+                                  ts_class(range(5, 9), range(2, 6)))
             self.assertEqual(thunk2.eval(), True)
-
-            scores.append(('#lz Lab10', 'test lazy recursive', 3))
-
-        # Lab11 tests...
+            scores.append(('#lz', '%s valid lazy recursion that wraps add/mul' % i, 1))
 
 
-    class TestTSMean(unittest.TestCase):
-        def testMean1(self):
-            t = TimeSeries([1], [-10])
-            self.assertEqual(t.mean(), -10)
-            scores.append(('#ar Lab11', 'mean base', 1))
+class TestTSMean(unittest.TestCase):
 
-        def testMean2(self):
-            t = TimeSeries([1, 2], [1, 2])
-            self.assertEqual(t.mean(), 1.5)
-            scores.append(('#ar Lab11', 'mean base2', 1))
+    def test_valid_mean_with_one_entry_sized_timeseries(self):
+        """ Sized Timeseries should return mean equal to the value if len == 1. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([1], [-10])
+            self.assertEqual(ts.mean(), -10)
+            scores.append(('#ts', '%s valid mean when len == 1' % i, 1))
 
-        def testMean3(self):
-            t = TimeSeries([1, 2, 3, 4], [1, 2, 3, 4])
-            # self.assertEqual(t.mean(), np.array([1, 2, 3, 4]).mean())
-            self.assertEqual(t.mean(), np.array([1, 2, 3, 4]).mean())
-            scores.append(('#ar Lab11', 'mean gen', 1))
+    def test_valid_mean_with_two_entry_sized_timeseries(self):
+        """ Sized Timeseries should return mean when len > 1. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = TimeSeries([1, 2], [1, 2])
+            tsb = TimeSeries([1, 2, 3, 4], [1, 2, 3, 4])
+            self.assertEqual(tsa.mean(), 1.5)
+            self.assertEqual(tsb.mean(), np.array([1, 2, 3, 4]).mean())
+            scores.append(('#ts', '%s valid mean when len > 1' % i, 1))
 
-        def testMean4(self):
-            # assert edge cases...
+    def test_invalid_mean_with_no_entry_sized_timeseries(self):
+        """ Sized Timeseries should throw when calling mean and len == 0. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([], [])
             with self.assertRaises(Exception):
-                t = TimeSeries([], [])
-                t.mean()
-            scores.append(('#ar Lab11', 'mean excep', 2))
+                ts.mean()
+            scores.append(('#ts', '%s throws on mean() when len == 0' % i, 1))
 
 
-    # Lab12 tests..
-    class TestTSIterators(unittest.TestCase):
-        def testIteratators1(self):
+class TestTSIterators(unittest.TestCase):
 
-            time_vals = [1, 2, 3, 4]
-            vals = [0.1, 0.2, 0.3, 0.4]
-            t = TimeSeries(time_vals, vals)
+    def test_itertimes_with_sized_timeseries(self):
+        """ Sized Timeseries should return times when itertimes called. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            times = [1, 2, 3, 4]
+            values = [0.1, 0.2, 0.3, 0.4]
+            ts = ts_class(times, values)
+            for i, time in enumerate(ts.itertimes()):
+                self.assertEqual(time, times[i])
+            scores.append(('#ts', '%s itertimes() should iterate over times' % i, 1))
 
-            # iterate over times
-            pos = 0
-            for time in t.itertimes():
-                self.assertEqual(time, time_vals[pos])
-                pos += 1
-            scores.append(('#ac Lab12', 'itertimes', 1))
+    def test_itervalues_with_sized_timeseries(self):
+        """ Sized Timeseries should return values when itervalues called. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            times = [1, 2, 3, 4]
+            values = [0.1, 0.2, 0.3, 0.4]
+            ts = ts_class(times, values)
+            for i, value in enumerate(ts.itervalues()):
+                self.assertEqual(value, values[i])
+            scores.append(('#ts', '%s itervalues() should iterate over values' % i, 1))
 
-        def testIteratators2(self):
-
-            time_vals = [1, 2, 3, 4]
-            vals = [0.1, 0.2, 0.3, 0.4]
-            t = TimeSeries(time_vals, vals)
-
-            # iterate over values
-            pos = 0
-            for val in t.itervalues():
-                self.assertEqual(val, vals[pos])
-                pos += 1
-            scores.append(('#ac Lab12', 'itervals', 1))
-
-        def testIteratators3(self):
-
-            time_vals = [1, 2, 3, 4]
-            vals = [0.1, 0.2, 0.3, 0.4]
-            t = TimeSeries(time_vals, vals)
-            # iterate over items
-            pos = 0
-            for item in t.iteritems():
-                self.assertEqual(item, (time_vals[pos], vals[pos]))
-                pos += 1
-            scores.append(('#ac Lab12', 'itertimes', 1))
+    def test_iteritems_with_sized_timeseries(self):
+        """ Sized Timeseries should return tuple (time, value) when iteritems called. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            times = [1, 2, 3, 4]
+            values = [0.1, 0.2, 0.3, 0.4]
+            ts = ts_class(times, values)
+            for i, item in enumerate(ts.iteritems()):
+                self.assertEqual(item, (times[i], values[i]))
+            scores.append(('#ts', '%s itervalues() should iterate over values' % i, 1))
 
 
-    # Lab 15 tests...
-    class TestTSUnaryyOperators(unittest.TestCase):
-        def testOps1(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            self.assertTrue(+t_a == t_a)
-            scores.append(('#ar Lab15', 'unary+', 1))
+class TestTSUnaryyOperators(unittest.TestCase):
 
-        def testOps2(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            # t_b = TimeSeries([1, 2, 3, 4], np.array([-0.1, -0.2, -0.3, -0.4]))
-            t_b = TimeSeries([1, 2, 3, 4], [-0.1, -0.2, -0.3, -0.4])
-            self.assertTrue(-t_a == t_b)
-            scores.append(('#ar Lab15', 'unary-', 1))
+    def test_valid_plus_sign_operator_with_positive_value_sized_timeseries(self):
+        """ Sized Timeseries with positive values with the unary-plus applied should not change. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            self.assertTrue(+(ts) == ts)
+            scores.append(('#ts', '%s unary+ should not change positive values' % i, 1))
 
-        def testOps3(self):
-            ts_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            self.assertTrue(bool(ts_a))
-            scores.append(('#ar Lab15', 'bool', 1))
+    def test_valid_unary_minus_sign_operator_with_sized_timeseries(self):
+        """ Sized Timeseries with negative values with the unary-plus applied should not change. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = ts_class([1, 2, 3, 4], [-0.1, -0.2, -0.3, -0.4])
+            self.assertEqual(-(tsa), tsb)
+            self.assertEqual(-(tsb), tsa)
+            scores.append(('#ts', '%s unary- should change all negative values' % i, 1))
 
-        def testOps4(self):
-            t_a = TimeSeries([1, 2], [20., -9.])
-            self.assertEqual(abs(t_a), list(np.sqrt([20. * 20. + 9 * 9])))
-            scores.append(('#ar Lab15', 'abs', 1))
+    def test_abs_operator_with_nonempty_sized_timeseries(self):
+        """ Sized Timeseries with any length > 0 should return l2 norm when abs applied. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2], [20., -9.])
+            self.assertEqual(abs(ts), list(np.sqrt([20. * 20. + 9 * 9])))
+            scores.append(('#ts', '%s abs should return l2 norm for lengths > 0' % i, 1))
 
-        def testOps5(self):
+    def test_abs_operator_with_empty_sized_timeseries(self):
+        """ Sized Timeseries with no length should throw when abs applied. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
             with self.assertRaises(Exception):
-                abs(TimeSeries([], []))
-            scores.append(('#ar Lab15', 'abs empty', 2))
+                abs(ts_class([], []))
+            scores.append(('#ts', '%s abs should throw for lengths == 0' % i, 1))
 
+    def test_bool_operator_with_nonempty_sized_timeseries(self):
+        """ Sized Timeseries with any length > 0 should return True when l2 norm is non-zero. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = TimeSeries([1, 2, 3, 4, 5], [0.1, 0.2, 0.3, 0.4, 0.5])
+            tsb = TimeSeries([1], [0.1])
+            self.assertTrue(bool(tsa))
+            self.assertTrue(bool(tsb))
+            scores.append(('#ts', '%s bool should return true for lengths > 0' % i, 1))
 
-    class TestTSBinaryOperators(unittest.TestCase):
-        def testEq1(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            # ats = ArrayTimeSeries
-            # t_b = TimeSeries([1, 2, 3, 4], np.array([0.1, 0.2, 0.3, 0.4]))
-            t_c = TimeSeries([1, 2, 3, 4], [0.5, 0.2, 0.9, 0.4])
+    def test_bool_operator_with_nonempty_sized_timeseries(self):
+        """ Sized Timeseries with any length > 0 should return False when l2 norm is zero. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([0, 0, 0, 0], [0, 0, 0, 0])
+            self.assertFalse(bool(ts))
+            scores.append(('#ts', '%s bool should return false when l2 norm is 0' % i, 1))
 
-            # self.assertEqual(t_a, t_b)
-            self.assertNotEqual(t_a, t_c)
-            scores.append(('#ac Lab15', 'eq base', 1))
+    def test_bool_operator_with_empty_sized_timeseries(self):
+        """ Sized Timeseries with any length == 0 should throw or return False when bool applied. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([], [])
+            temp = None
+            try:
+                temp = bool(ts)
+            except:
+                # Either throws
+                pass
+            else:
+                # or returns False
+                self.assertFalse(temp)
+            scores.append(('#ts', '%s bool should return false or throw for lengths == 0' % i, 1))
 
-        def testEq2(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            # t_b = TimeSeries([1, 2, 3, 4], np.array([0.1, 0.2, 0.3, 0.4]))
-            t_c = TimeSeries([1, 2, 3, 4], [0.5, 0.2, 0.9, 0.4])
-            t_d = TimeSeries([-10, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            t_e = TimeSeries([1, 2, 3], [0.5, 0.2, 0.9])
-            t_f = TimeSeries([], [])
+class TestTSBinaryOperators(unittest.TestCase):
+
+    def test_valid_equality_check_with_valid_length_sized_timeseries(self):
+        """ Sized Timeseries with the same size should work with equality condition. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsc = ts_class([1, 2, 3, 4], [0.5, 0.2, 0.9, 0.4])
+            self.assertEqual(tsa, tsb)
+            self.assertNotEqual(tsa, tsc)
+            self.assertNotEqual(tsb, tsc)
+            scores.append(('#ts', '%s class should be/not be equal on ts with the same sizes' % i, 1))
+
+    def test_invalid_equality_check_with_different_length_sized_timeseries(self):
+        """ Sized Timeseries with the different sizes should throw error. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = TimeSeries([1, 2, 3], [0.5, 0.2, 0.9])
+            tsc = TimeSeries([], [])
             with self.assertRaises(ValueError):
-                t_a == t_d
+                tsa == tsb
             with self.assertRaises(ValueError):
-                t_e == t_d
+                tsa == tsc
             with self.assertRaises(ValueError):
-                t_e == t_f
-            with self.assertRaises(ValueError):
-                t_a == t_f
+                tsb == tsc
+            scores.append(('#ts', '%s class equality check should throw when ts classes have different sizes' % i, 1))
+
+    def test_invalid_equality_check_against_invalid_types(self):
+        """ Sized Timeseries should throw when equality checked with invalid types. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
             with self.assertRaises(TypeError):
-                t_a == 4
-
-            scores.append(('#ac Lab15', 'eq value err', 2))
-
-        def testEq3(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+                ts == 4
             with self.assertRaises(NotImplementedError):
-                t_a == [1, 2, 3, 4]
+                ts == [1, 2, 3, 4]
             with self.assertRaises(NotImplementedError):
-                t_a == np.array([1, 2, 3, 4])
-            scores.append(('#ac Lab15', 'eq not impl err', 1))
+                ts == np.array([1, 2, 3, 4])
+            scores.append(('#ts', '%s class equality check should throw when not compared to ts class' % i, 1))
 
-        def testSub1(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            # t_b = TimeSeries([1, 2, 3, 4], np.array([0.1, 0.2, 0.3, 0.4]))
-            t_b = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            t_c = TimeSeries([1, 2, 3, 4], [0.0, 0.0, 0.0, 0.0])
-            t_d = TimeSeries([1, 2, 3, 4], [-0.9, -0.8, -0.7, -0.6])
-            t_e = TimeSeries([1, 2, 3], [0.5, 0.2, 0.9])
-            t_f = TimeSeries([], [])
+    def test_valid_subtraction_with_valid_length_sized_timeseries(self):
+        """ Sized Timeseries with the same size should work with subtraction. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsc = ts_class([1, 2, 3, 4], [0.0, 0.0, 0.0, 0.0])
+            self.assertEqual(tsa - tsb, tsc)
+            scores.append(('#ts', '%s class should subtract on valid ts sizes' % i, 1))
 
-            self.assertEqual(t_a - t_b, t_c)
-
-            scores.append(('#ar Lab15', 'sub base', 1))
-
-
-            # to avoid errors be here maybe a bit more generous...
-            # i.e. allow besides TypeErrors also NotImplemented
-            # here separate into individual test cases!
-
-        def testSub2(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+    def test_invalid_subtraction_with_string(self):
+        """ Sized Timeseries should throw TypeError when subtracting with string. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
             with self.assertRaises(TypeError):
-                t_a - 'Hello'
+                ts - 'Hello'
+            with self.assertRaises(TypeError):
+                'Hello' - ts
+            scores.append(('#ts', '%s class should throw when subtracting from string' % i, 1))
 
-        def test_multiplication_with_valid_length_timeseries(self):
-            ts_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            ts_b = TimeSeries([1, 2, 3, 4], [2.0, 3.0, 3.0, 2.0])
-            ts_c = TimeSeries([1, 2, 3, 4], [0.2, 0.6, 0.9, 0.8])
-
+    def test_valid_multiplication_with_valid_length_sized_timeseries(self):
+        """ Sized Timeseries with the same size should work with multiplication """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts_a = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            ts_b = ts_class([1, 2, 3, 4], [2.0, 3.0, 3.0, 2.0])
+            ts_c = ts_class([1, 2, 3, 4], [0.2, 0.6, 0.9, 0.8])
             self.assertEqual(ts_a * ts_b, ts_c)
-            scores.append(('#ar Lab15', 'mul base', 1))
+            scores.append(('#ts', '%s class should multiply on valid ts sizes' % i, 1))
 
-            # to avoid errors be here maybe a bit more generous...
-            # i.e. allow besides TypeErrors also NotImplemented
-            # here separate into individual test cases!
-
-        def testMul2(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+    def test_invalid_multiplication_with_string(self):
+        """ Sized Timeseries should throw TypeError when multiplying with string. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
             with self.assertRaises(TypeError):
-                t_a * 'Hello'
+                ts * 'Hello'
+            scores.append(('#ts', '%s class should throw when multiplying with string' % i, 1))
 
-            scores.append(('#ar Lab15', 'mul adv', 3))
-
-        def testMul3(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+    def test_invalid_multiplication_with_list_array(self):
+        """ Sized Timeseries should throw when multiplying with list/array. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            ts = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
             with self.assertRaises(NotImplementedError):
-                t_a * [1, 2, 3, 4]
+                ts * [1, 2, 3, 4]
             with self.assertRaises(NotImplementedError):
-                t_a * np.array([1, 2, 3, 4])
+                ts * np.array([1, 2, 3, 4])
+            scores.append(('#ts', '%s class should throw when multiplying with list/array' % i, 1))
 
-            scores.append(('#ar Lab15', 'mul not impl', 1))
+    def test_valid_multiplication_with_integer(self):
+        """ Sized Timeseries should multiply all values by integer. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            factor = 2
+            tsa = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = ts_class([1, 2, 3, 4], [0.2, 0.4, 0.6, 0.8])
+            self.assertEqual(tsa * factor, tsb)
+            scores.append(('#ts', '%s class should multiply values by integer factor' % i, 1))
 
-        def testMul4(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            t_d = TimeSeries([1, 2, 3, 4], [0.2, 0.4, 0.6, 0.8])
+    def test_valid_multiplication_with_float(self):
+        """ Sized Timeseries should multiply all values by float. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            factor = 2.2
+            tsa = ts_class([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+            tsb = ts_class([1, 2, 3, 4], [0.22, 0.44, 0.66, 0.88])
+            tsc = tsa * factor
+            self.assertEqual(tsc, tsb)
+            scores.append(('#ts', '%s class should multiply values by float factor' % i, 1))
 
-            val = 2
-            val = int(val)
-
-            self.assertEqual(t_a * val, t_d)
-            scores.append(('#ar Lab15', 'mul + int val', 2))
-
-        def testMul6(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            t_d = TimeSeries([1, 2, 3, 4], [0.2, 0.4, 0.6, 0.8])
-
-            val = 2
-            val = float(val)
-            self.assertEqual(t_a * val, t_d)
-            scores.append(('#ar Lab15', 'mul + float val', 1))
-
-        def testMul7(self):
-            t_a = TimeSeries([1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
-            t_e = TimeSeries([1, 2, 3], [0.5, 0.2, 0.9])
-            t_f = TimeSeries([], [])
-
+    def test_invalid_multiplication_with_inconsistent_sizes(self):
+        """ Sized Timeseries should throw when multiplying a differently-sized time-series. """
+        for i, ts_class in SIZED_CONCRETE_CLASSES:
+            tsa = TimeSeries([1, 2, 3, 4, 5], [0.1, 0.2, 0.3, 0.4, 0.5])
+            tsb = TimeSeries([1, 2, 3], [0.5, 0.2, 0.9])
+            tsc = TimeSeries([], [])
             with self.assertRaises(ValueError):
-                t_a * t_e
+                tsa * tsb
             with self.assertRaises(ValueError):
-                t_a * t_f
+                tsa * tsc
+            with self.assertRaises(ValueError):
+                tsb * tsc
+            scores.append(('#ts', '%s class should throw when multiplying two differently-sized timeseries' % i, 1))
 
-            scores.append(('#ar Lab15', 'mul + val err', 2))
 
+class TestTimeSeriesDocs(unittest.TestCase):
+    def test_all_required_methods_have_docstrings(self):
+        """ Make sure that all the required methods are well documented """
+        DOCSTRING_LENGTH = 5
+        REQUIRED_DOCSTRINGS = ['__init__', '__str__', 'items', '__contains__',
+                               '__iter__', '__eq__', '__add__', '__sub__', '__mul__',
+                               'itertimes', 'itervalues', 'iteritems', '__abs__', '__bool__']
+        ts = TimeSeries([1, 2, 3], [1, 2, 3])
+        for method in REQUIRED_DOCSTRINGS:
+            try:
+                if len(getattr(ts, method, '').__doc__.strip()) > DOCSTRING_LENGTH:
+                    scores.append(('#doc General', 'item docstrings: ' + method, 1))
+            except AttributeError:
+                scores.append(('#doc General', 'item docstrings: ' + method, 0))
+                continue
+            except Exception as e:
+                logging.exception(e)
+                scores.append(('#doc General', 'item docstrings: ' + method, 0))
 
-    class TestTimeSeriesDocs(unittest.TestCase):
-        def test_all_required_methods_have_docstrings(self):
-            """ Make sure that all the required methods are well documented """
-            DOCSTRING_LENGTH = 5
-            REQUIRED_DOCSTRINGS = ['__init__', '__str__', 'items', '__contains__',
-                                   '__iter__', '__eq__', '__add__', '__sub__', '__mul__',
-                                   'itertimes', 'itervalues', 'iteritems', '__abs__', '__bool__']
-            ts = TimeSeries([1, 2, 3], [1, 2, 3])
-            for method in REQUIRED_DOCSTRINGS:
-                try:
-                    if len(getattr(ts, method, '').__doc__.strip()) > DOCSTRING_LENGTH:
-                        scores.append(('#doc General', 'item docstrings: ' + method, 1))
-                except AttributeError:
-                    scores.append(('#doc General', 'item docstrings: ' + method, 0))
-                    continue
-                except Exception as e:
-                    logging.exception(e)
-                    scores.append(('#doc General', 'item docstrings: ' + method, 0))
-
-        def test_class_has_docstring(self):
-            ts = TimeSeries([1, 2, 3], [1, 2, 3])
-            self.assertIsNotNone(ts.__doc__)
-            self.assertTrue(len(ts.__doc__) > 10)
-            scores.append(('#doc General', 'class docstrings', 3))
+    def test_class_has_docstring(self):
+        ts = TimeSeries([1, 2, 3], [1, 2, 3])
+        self.assertIsNotNone(ts.__doc__)
+        self.assertTrue(len(ts.__doc__) > 10)
+        scores.append(('#doc General', 'class docstrings', 3))

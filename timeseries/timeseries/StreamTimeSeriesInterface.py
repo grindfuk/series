@@ -45,7 +45,6 @@ class StreamTimeSeriesInterface(TimeSeriesInterface):
         :return:
         """
 
-    @abstractmethod
     def online_mean(self):
         """ Returns the Streaming TimeSeries that returns series of averages when produce is called."""
 

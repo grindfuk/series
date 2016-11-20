@@ -12,6 +12,7 @@ class SimulatedTimeSeries(StreamTimeSeriesInterface):
         ----------
         generator: the generator used from producing the timeseries points
         """
+        assert(callable(generating_function))
         self.generator = generating_function
         self.n = 0
         self.mu = 0
@@ -336,25 +337,22 @@ class SimulatedTimeSeries(StreamTimeSeriesInterface):
 		-------
 		formal string representation of timeseries class
 		"""
-        if len(self) > 0:
-            return '<{},{}-TimeSeries>'.format(type(self._times[0]), type(self._values[0]))
-        else:
-            return '<empty-TimeSeries'
+        return 'SimulatedTimeSeries using the generator: %s' % str(self.generator)
 
     def __str__(self):
         """
 		informal string representation in a descriptive manner
-		outputs elements at the start and end of the timeseries
+		Outputs the str of the generating function.
 
 		Returns
 		-------
 		informal string representation
 		"""
 
-        # print out all values if less or equal than 5 values
-        if len(self) <= 5:
-            return 'TimeSeries(t={}, v={})'.format(str(list(self._times)), str(list(self._values)))
-        else:
-            return 'TimeSeries(t=[{}, {}, ..., {}, {}], v=[{}, {}, ..., {}, {}])'.format( \
-                self._times[0], self._times[1], self._times[-2], self._times[-1], \
-                self._values[0], self._values[1], self._values[-2], self._values[-1])
+        return 'SimulatedTimeSeries using the generator: %s' % str(self.generator)
+
+    def online_mean(self):
+        pass
+
+    def online_std(self):
+        pass
