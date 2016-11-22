@@ -1,13 +1,13 @@
 import numbers
 import numpy as np
 from timeseries.lazy import *
-from timeseries.TimeSeries import TimeSeries
 from timeseries.SizedContainerTimeSeriesInterface import SizedContainerTimeSeriesInterface
 
 # to avoid float problems, allow some tolerance!
 tolerance = 10 ** (-9)
 
 class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
+    """ Doc taken from timeseries mostly """
 
     def __init__(self, times, values):
         """
@@ -40,10 +40,10 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         """
         returns length of TimeSeries
 
-        >>> ts = TimeSeries([0.5, 1., 2., 4.], [1, 2, 3, 4])
+        >>> ts = ArrayTimeSeries([0.5, 1., 2., 4.], [1, 2, 3, 4])
         >>> len(ts)
         4
-        >>> len(TimeSeries([], []))
+        >>> len(ArrayTimeSeries([], []))
         0
         """
         return len(self._times)
@@ -61,7 +61,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         timeseries value at position index
 
-        >>> ts = TimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
+        >>> ts = ArrayTimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
         >>> ts[0]
         0.5
         >>> ts[3]
@@ -80,7 +80,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         index : position to update
         val : new value to update timeseries at position index with
 
-        >>> ts = TimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
+        >>> ts = ArrayTimeSeries([0.5, 0.7, 0.8, 1.0], [0.5, 1., 2., 4.])
         >>> ts[0] = 2.0
         2.0
         >>> ts[0]
@@ -194,10 +194,10 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
 
                     vals.append(interp_val)
 
-            return TimeSeries(times, vals)
+            return ArrayTimeSeries(times, vals)
         # empty list submitted, return empty timeseries!
         else:
-            return TimeSeries([], [])
+            return ArrayTimeSeries([], [])
 
     @property
     def lazy(self):
@@ -218,7 +218,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         mean of stored values
 
-        >>> ts = TimeSeries([0, 1], [5.0, 6.0])
+        >>> ts = ArrayTimeSeries([0, 1], [5.0, 6.0])
         >>> ts.mean()
         5.5
         """
@@ -232,7 +232,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         median of stored values
 
-        >>> ts = TimeSeries([0, 1, 2], [4.0, 6.0, 4.0])
+        >>> ts = ArrayTimeSeries([0, 1, 2], [4.0, 6.0, 4.0])
         >>> ts.median()
         4.0
         """
@@ -256,8 +256,8 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         true if values of timeseries match and time domain is equal, false else
 
-        >>> ta = TimeSeries([1, 2], [0.4, 0.5])
-        >>> tb = TimeSeries([1, 2], [-0.4, 0.8])
+        >>> ta = ArrayTimeSeries([1, 2], [0.4, 0.5])
+        >>> tb = ArrayTimeSeries([1, 2], [-0.4, 0.8])
         >>> ta == ta
         True
         >>> ta == tb
@@ -275,6 +275,9 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
 
         return np.allclose(self._values, rhs.values())
 
+    def __radd__(self, lhs):
+        return self + lhs
+
     def __add__(self, rhs):
         """
         Parameters
@@ -285,7 +288,7 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         -------
         new timeseries object as result of the addition
         """
-        if isinstance(rhs, (TimeSeries)):
+        if isinstance(rhs, (ArrayTimeSeries)):
             if len(self) != len(rhs):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
 
@@ -390,9 +393,9 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
         formal string representation of timeseries class
         """
         if len(self) > 0:
-            return '<{},{}-TimeSeries>'.format(type(self._times[0]), type(self._values[0]))
+            return '<{},{}-ArrayTimeSeries>'.format(type(self._times[0]), type(self._values[0]))
         else:
-            return '<empty-TimeSeries'
+            return '<empty-ArrayTimeSeries'
 
     def __str__(self):
         """
@@ -406,8 +409,8 @@ class ArrayTimeSeries(SizedContainerTimeSeriesInterface):
 
         # print out all values if less or equal than 5 values
         if len(self) <= 5:
-            return 'TimeSeries(t={}, v={})'.format(str(list(self._times)), str(list(self._values)))
+            return 'ArrayTimeSeries(t={}, v={})'.format(str(list(self._times)), str(list(self._values)))
         else:
-            return 'TimeSeries(t=[{}, {}, ..., {}, {}], v=[{}, {}, ..., {}, {}])'.format( \
+            return 'ArrayTimeSeries(t=[{}, {}, ..., {}, {}], v=[{}, {}, ..., {}, {}])'.format( \
                 self._times[0], self._times[1], self._times[-2], self._times[-1], \
                 self._values[0], self._values[1], self._values[-2], self._values[-1])

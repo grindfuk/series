@@ -327,6 +327,9 @@ class TimeSeries(SizedContainerTimeSeriesInterface):
 
         return np.allclose(self._values, rhs.values(), atol=tolerance)
 
+    def __radd__(self, lhs):
+        return self + lhs
+
     def __add__(self, rhs):
         """
 		Parameters
@@ -337,16 +340,17 @@ class TimeSeries(SizedContainerTimeSeriesInterface):
 		-------
 		new timeseries object as result of the addition
 		"""
+        print(type(rhs))
         if isinstance(rhs, (TimeSeries)):
             if len(self) != len(rhs):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
 
             if not np.allclose(self._times, rhs.times(), atol=tolerance):
                 raise ValueError(str(self) + ' and ' + str(rhs) + 'must have the same time points')
-            return TimeSeries(self._times, self._values + rhs.values())
+            return TimeSeries(self._times, [self._values[i] + rhs.values()[i] for i in range(len(self._values))])
 
         elif isinstance(rhs, (int, float)):
-            return TimeSeries(self._times, self._values + rhs)
+            return TimeSeries(self._times, [v + rhs for v in self._values])
         else:
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
@@ -375,7 +379,7 @@ class TimeSeries(SizedContainerTimeSeriesInterface):
             return TimeSeries(self._times, updated_values)
 
         elif isinstance(rhs, (int, float)):
-            return TimeSeries(self._times, self._values - rhs)
+            return TimeSeries(self._times, [t - rhs for t in self._values])
         else:
             if isinstance(rhs, (np.ndarray, list)):
                 raise NotImplementedError
