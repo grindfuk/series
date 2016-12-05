@@ -332,7 +332,7 @@ class TestTSBasics(unittest.TestCase):
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             expected_times = [1.5, 2.5, 3.5, 7.0]
             ts = ts_class(expected_times, [0.1, 0.2, 0.3, 0.4])
-            self.assertEqual(list(ts.times()), expected_times)
+            self.assertListEqual(list(ts.times()), expected_times)
             scores.append(('#ts', '%s class should have valid times property' % i, 1))
 
     @score(2)
@@ -340,7 +340,7 @@ class TestTSBasics(unittest.TestCase):
         """ All sized classes should have a fixed length items property """
         for i, ts_class in SIZED_CONCRETE_CLASSES:
             ts = ts_class([1.5, 2.5, 3.5, 7.0], [0.1, 0.2, 0.3, 0.4])
-            self.assertEqual(list(ts.items()), [(1.5, 0.1), (2.5, 0.2), (3.5, 0.3), (7.0, 0.4)])
+            self.assertListEqual(list(ts.items()), [(1.5, 0.1), (2.5, 0.2), (3.5, 0.3), (7.0, 0.4)])
             scores.append(('#ts', '%s class should have valid items property' % i, 1))
 
 class TestTSInterpolation(unittest.TestCase):

@@ -14,30 +14,6 @@ from timeseries import (
 class TestProject5(unittest.TestCase):
     """ Tests the module 'Time Series Interface and Implementation. """
 
-    def test_that_timeseriesinterface_is_abc(self):
-        self.assertIsInstance(TimeSeriesInterface, ABCMeta)
-
-    def test_class_hierachy_of_timeseries(self):
-        class_history= inspect.getmro(TimeSeries)
-        self.assertTupleEqual(
-            class_history,
-            (TimeSeries, SizedContainerTimeSeriesInterface, TimeSeriesInterface, object)
-        )
-
-    def test_class_hierachy_of_array_timeseries(self):
-        class_history= inspect.getmro(ArrayTimeSeries)
-        self.assertTupleEqual(
-            class_history,
-            (ArrayTimeSeries, SizedContainerTimeSeriesInterface, TimeSeriesInterface, object)
-        )
-
-    def test_class_hierachy_of_simulated_timeseries(self):
-        class_history= inspect.getmro(SimulatedTimeSeries)
-        self.assertTupleEqual(
-            class_history,
-            (SimulatedTimeSeries, StreamTimeSeriesInterface, TimeSeriesInterface, object)
-        )
-
     def test_extra_credit_mean_of_sizedcontainertimeseriesinterface(self):
         self.assertTrue(
             hasattr(TimeSeries, "mean")
