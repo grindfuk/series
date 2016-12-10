@@ -5,11 +5,11 @@ __pycache__
 *.pyc                                                                                                                   
 .idea
 
-milestone2/rbtree/student_solutions/ATeamHasNoName/
-milestone2/rbtree/student_solutions/cs207-2016/*
-milestone2/rbtree/student_solutions/ecnc/*
-milestone2/rbtree/student_solutions/gitrdone4/*
-milestone2/rbtree/student_solutions/glacierscse/*
-milestone2/rbtree/student_solutions/jovhscript/*
-milestone2/rbtree/student_solutions/rubix-cube/*
-milestone2/rbtree/student_solutions/slac207/*
+milestone2/student_solutions/ATeamHasNoName/
+milestone2/student_solutions/cs207-2016/*
+milestone2/student_solutions/ecnc/*
+milestone2/student_solutions/gitrdone4/*
+milestone2/student_solutions/glacierscse/*
+milestone2/student_solutions/jovhscript/*
+milestone2/student_solutions/rubix-cube/*
+milestone2/student_solutions/slac207/*

@@ -1,5 +1,11 @@
 import unittest
 from student_solutions import repo
+"""
+NOTES:
+    - There are 2 main concrete testable classes, the FileStorageManager and the SMTimeSeries
+        What do we want to know about them?
+    - The parts that we need to inspect will be their caching mechanism and whether it actually works.
+"""
 
 SCORE = 0
 TOTAL_SCORE = 0
@@ -137,7 +143,7 @@ class MainTest(unittest.TestCase):
         self.assertEqual(ts.values, [2.5, 2.3, 2.2, 2.3, 2.6, 3.0])
 
     def test_file_storage_manager_get_bad_id(self):
-        """ FileStorageManager should """
+        """ FileStorageManager should raise some type of exception or throw none when the file is unknown. """
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
             ts = fs.get('unknown.dat')
@@ -145,7 +151,7 @@ class MainTest(unittest.TestCase):
                 raise Exception('Returning None is also valid!')
 
     def test_file_storage_manager_get_non_string(self):
-        """ FileStorageManager should """
+        """ FileStorageManager should ONLY use string to get back a TimeSeries """
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
             ts = fs.get()
@@ -155,4 +161,3 @@ class MainTest(unittest.TestCase):
             ts = fs.get([])
         with self.assertRaises(Exception):
             ts = fs.get({})
-
