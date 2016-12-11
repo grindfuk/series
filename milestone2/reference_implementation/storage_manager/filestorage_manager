@@ -1,0 +1,131 @@
+from storage_manager.interface import StorageManagerInterface
+from timeseries.interface import TimeSeriesInterface
+import os
+import sys
+import pickle
+import logging
+from functools import lru_cache
+
+# This must be pre-allocated.
+CACHE_SIZE = 512
+
+
+class FileStorageManager(StorageManagerInterface):
+    """ A storage manager class that store TimeSeries Objects.
+
+    Parameters
+    ----------
+    directory: string (optional)
+        Path to directory to where time series data files are stored.
+
+    Examples
+    --------
+    > fsm = FileStorageManager()
+    > ts = ArrayTimeSeries([1, 2], [1.5, 2.5])
+    > fsm.store(101, ts)
+    ArrayTimeSeries[1.5, 2.5]
+    > fsm.get(101)
+    ArrayTimeSeries[1.5, 2.5]
+    > fsm.size(1)
+    2
+    """
+
+    def __init__(self, directory='ts_fsm_data'):
+        """ Initializes FileStorageManager with a directory where TimeSeries will be stored.
+
+        Parameters
+        ----------
+        directory: string (optional)
+            Relative or absolute path to directory where TimeSeries will be stored.
+            The directory can exist before initialization.
+        """
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        self._directory = directory
+
+    def store(self, storage_id, timeseries):
+        """ Stores TimeSeries `timeseries` into the storage manager with `storage_id`
+
+        Parameters
+        ----------
+        storage_id : int / string
+            id of timeseries we want to store
+        object <TimeSeriesInterface>
+            The TimeSeries object
+
+        Returns
+        -------
+        object <TimeSeriesInterface>
+            The same TimeSeries object
+
+        Raises
+        ------------
+        ValueError:
+            if storage_id is not ascii str or int
+            if timeseries is not an instance TimeSeriesInterface
+        """
+        if not isinstance(timeseries, TimeSeriesInterface):
+            raise ValueError('FileStorageManager can only store objects that inherit TimeSeriesInterface')
+        if not isinstance(storage_id, (int, str)):
+            raise ValueError('FileStorageManager can only store objects with ids that are str or int')
+
+        storage_file = os.path.join(self._directory, str(storage_id))
+        logging.debug('Storing File %s', storage_file)
+        with open(storage_file, 'wb') as file:
+            pickle.dump(timeseries, storage_file, protocol=pickle.HIGHEST_PROTOCOL)
+        return timeseries
+
+    @lru_cache(maxsize=CACHE_SIZE)
+    def size(self, storage_id):
+        """ Returns the length of the timeseries given by `storage_id`
+
+        Parameters
+        ----------
+        storage_id : int / string
+            id of timeseries we want to store
+
+        Returns
+        -------
+        int:
+            Length of the timeseries given by `storage_id`
+
+        Raises
+        ------
+        KeyError
+            If `storage_id` does not exist
+        ValueError
+            If `storage_id` is not str or int
+        """
+        return len(self.get(storage_id))
+
+    @lru_cache(maxsize=CACHE_SIZE)
+    def get(self, storage_id):
+        """ Returns a TimeSeriesInterface instance specified by `storage_id`
+
+        Parameters
+        ----------
+        storage_id : int / string
+            id of timeseries we want to store
+
+        Returns
+        -------
+        object <TimeSeriesInterface>
+            The same TimeSeriesInterface instance
+
+        Raises:
+        KeyError
+            If `storage_id` does not exist
+        ValueError
+            If `storage_id` is not str or int
+        """
+        if not isinstance(storage_id, (int, str)):
+            raise ValueError('FileStorageManager requires that storage_ids are str or int')
+
+        storage_file = os.path.join(self._directory, str(storage_id))
+        if not os.path.isfile(storage_file):
+            raise KeyError('Storage ID does not exist!')
+
+        # TODO: Move this into an internal cache instead of method cache
+        with open(storage_file, 'wb') as file:
+            timeseries = pickle.load(storage_file, protocol=pickle.HIGHEST_PROTOCOL)
+            return timeseries
