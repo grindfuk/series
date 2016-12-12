@@ -38,10 +38,9 @@ class MainTest(unittest.TestCase):
         for method in ["from_db"]:
             cls_attr = getattr(SMTimeSeries, method)
             self.assertTrue(callable(cls_attr))
-        print(self.group)
         self.assertTrue(True)
 
-    def test_smtimeseries_init(self):
+    def test_smtimeseries_init_with_no_id(self):
         """ Check ths SMTimeSeries has id.
         NOTE: When checking, we should manually make sure that the id is accessible.
         """
@@ -49,6 +48,22 @@ class MainTest(unittest.TestCase):
         values = [0.5, 0.3, 0.2, 0.3, 0.6]
         ts = SMTimeSeries(times, values)
         self.assertTrue(hasattr(ts, 'id') or hasattr(ts, '_id'))
+
+    def test_smtimeseries_init_and_retrieve_with_string_id(self):
+        """ Check that SMTimeSeries can be initialized with string id. """
+        times = [1,2,3,4,5]
+        values = [0.5, 0.3, 0.2, 0.3, 0.6]
+        ts = SMTimeSeries(times, values, 'king')
+        same_ts = SMTimeSeries.from_db('king')
+        self.assertEqual(ts, same_ts)
+
+    def test_smtimeseries_init_and_retrieve_with_int_id(self):
+        """ Check that SMTimeSeries can be initialized with integer id. """
+        times = [1,2,3,4,5]
+        values = [1.5, 1.3, 1.2, 1.3, 1.6]
+        ts = SMTimeSeries(times, values, 1)
+        same_ts = SMTimeSeries.from_db(1)
+        self.assertEqual(ts, same_ts)
 
     def test_smtimeseries_from_db(self):
         times = [1,2,3,4,5]
@@ -61,29 +76,22 @@ class MainTest(unittest.TestCase):
         self.assertIsInstance(same_ts, SMTimeSeries)
         self.assertEqual(ts, same_ts)
 
-    def test_smtimeseries_init_with_string_id(self):
-        """ Check that SMTimeSeries can be initialized with string id. """
-        times = [1,2,3,4,5]
-        values = [0.5, 0.3, 0.2, 0.3, 0.6]
-        ts = SMTimeSeries(times, values, 'king')
-        same_ts = SMTimeSeries.from_db('king')
-        self.assertEqual(ts, same_ts)
-
-    def test_smtimeseries_init_with_int_id(self):
-        """ Check that SMTimeSeries can be initialized with integer id. """
-        times = [1,2,3,4,5]
-        values = [1.5, 1.3, 1.2, 1.3, 1.6]
-        ts = SMTimeSeries(times, values, 1)
-        same_ts = SMTimeSeries.from_db(1)
-        self.assertEqual(ts, same_ts)
-
-    def test_smtimeseries_init_with_float_id(self):
-        """ OPTIONAL: Check that SMTimeSeries can be initialized with float id. """
+    def test_smtimeseries_bad_init(self):
+        """ This should match the spec in the StorageManagerInterface unless it is specifically
+            decoupled. But then, SM should specify what it allows rather than having the user
+            follow it down the StorageManager chain """
         times = [1,2,3,4,5]
         values = [2.5, 2.3, 2.2, 2.3, 2.6]
-        ts = SMTimeSeries(times, values, 1.5)
-        same_ts = SMTimeSeries.from_db(1.5)
-        self.assertEqual(ts, same_ts)
+        with self.assertRaises(Exception):
+            ts = SMTimeSeries(times, values, 1.5)
+        with self.assertRaises(Exception):
+            ts = SMTimeSeries(times, values, True)
+        with self.assertRaises(Exception):
+            ts = SMTimeSeries(times, values, (1,2))
+        with self.assertRaises(Exception):
+            ts = SMTimeSeries(times, values, [1,2])
+        with self.assertRaises(Exception):
+            ts = SMTimeSeries(times, values, {'1':2})
 
     def test_file_storage_manager_bad_init(self):
         """ Should initialize with either 1: file-descriptor or 2: str """
@@ -96,26 +104,45 @@ class MainTest(unittest.TestCase):
         with self.assertRaises(Exception):
             FileStorageManager({})
 
-    def test_file_storage_manager_store(self):
-        """ OPTIONAL: Check that SMTimeSeries can be initialized with float id. """
+    def test_file_storage_manager_store_with_string(self):
+        """ FileStorageManager should be able to store with a string id """
         times = [1,2,3,4,5, 6]
         values = [2.5, 2.3, 2.2, 2.3, 2.6, 3.0]
         ts = SMTimeSeries(times, values, 1.5)
         fs = FileStorageManager('test.dat')
-        fs.store('thisid', ts)
+        fs.store('great.dat', ts)
+
+    def test_file_storage_manager_store_with_int(self):
+        """ FileStorageManager should be able to store with an int id """
+        times = [1,2,3,4,5, 6]
+        values = [2.5, 2.3, 2.2, 2.3, 2.6, 3.0]
+        fs = FileStorageManager('test.dat')
+        ts = SMTimeSeries(times, values, 1.5)
+        fs.store(42, ts)
 
     def test_file_storage_manager_store_non_ts(self):
         """ Check that storing anything other than a timeseries is bad. """
-        times = [1,2,3,4,5, 6]
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
-            fs.store('thisid', times)
+            fs.store('baddataid', [1,2,3])
+        with self.assertRaises(Exception):
+            fs.store('baddata', {'dict':2})
+        with self.assertRaises(Exception):
+            fs.store('baddata', True)
+        with self.assertRaises(Exception):
+            fs.store('baddata', 1)
+        with self.assertRaises(Exception):
+            fs.store('baddata', 'string')
 
-    def test_file_storage_manager_store_with_mutable_ids(self):
+    def test_file_storage_manager_store_with_invalid_id_types(self):
         times = [1,2,3,4,5, 6]
         values = [2.5, 2.3, 2.2, 2.3, 2.6, 3.0]
         ts = SMTimeSeries(times, values, 1.5)
         fs = FileStorageManager('test.dat')
+        with self.assertRaises(Exception):
+            fs.store(1, ts)
+        with self.assertRaises(Exception):
+            fs.store(True, ts)
         with self.assertRaises(Exception):
             fs.store([], ts)
         with self.assertRaises(Exception):
@@ -134,29 +161,45 @@ class MainTest(unittest.TestCase):
     def test_file_storage_manager_size_bad_id(self):
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
-            fs.size('unknown.dat')
+            size = fs.size('unknown.dat')
+            if size is None:
+                raise Exception('Returning None is also valid but 0 isn\'t valid!')
+        with self.assertRaises(Exception):
+            size = fs.size(24)
+            if size is None:
+                raise Exception('Returning None is also valid but 0 isn\'t valid!')
 
     def test_file_storage_manager_get(self):
+        """ FileStorageManager should be able to get using either string or int """
         fs = FileStorageManager('test.dat')
-        ts = fs.get('great.dat')
-        self.assertEqual(ts.times, [1,2,3,4,5,6])
-        self.assertEqual(ts.values, [2.5, 2.3, 2.2, 2.3, 2.6, 3.0])
+        ts_str = fs.get('great.dat')
+        self.assertEqual(ts_str.times, [1,2,3,4,5,6])
+        self.assertEqual(ts_str.values, [2.5, 2.3, 2.2, 2.3, 2.6, 3.0])
+        ts_int = fs.get(42)
+        self.assertEqual(ts_str.times, [1,2,3,4,5,6])
+        self.assertEqual(ts_str.values, [2.5, 2.3, 2.2, 2.3, 2.6, 3.0])
 
-    def test_file_storage_manager_get_bad_id(self):
+    def test_file_storage_manager_get_invalid_id(self):
         """ FileStorageManager should raise some type of exception or throw none when the file is unknown. """
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
             ts = fs.get('unknown.dat')
-            if ts == None:
+            if ts is None:
+                raise Exception('Returning None is also valid!')
+        with self.assertRaises(Exception):
+            ts = fs.get(123)
+            if ts is None:
                 raise Exception('Returning None is also valid!')
 
-    def test_file_storage_manager_get_non_string(self):
-        """ FileStorageManager should ONLY use string to get back a TimeSeries """
+    def test_file_storage_manager_get_non_int_string(self):
+        """ FileStorageManager should ONLY use int or string to get back a TimeSeries """
         fs = FileStorageManager('test.dat')
         with self.assertRaises(Exception):
             ts = fs.get()
         with self.assertRaises(Exception):
-            ts = fs.get(1)
+            ts = fs.get(1.01)
+        with self.assertRaises(Exception):
+            ts = fs.get(True)
         with self.assertRaises(Exception):
             ts = fs.get([])
         with self.assertRaises(Exception):
